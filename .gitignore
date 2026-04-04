@@ -1,0 +1,41 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Environment / Secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Testing / Cache ──────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+# Scratch test files (keep test_3modes.py — it's the judge simulator)
+test_ping.py
+test_all_difficulties.py
+
+# ── Build / Lock ─────────────────────────────────────────────────────────────
+uv.lock

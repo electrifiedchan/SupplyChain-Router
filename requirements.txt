@@ -1,0 +1,21 @@
+# ── Core Framework ────────────────────────────────────────────────────────────
+openenv-core==0.2.3        # OpenEnv environment server + client base classes
+fastapi==0.135.3            # HTTP/WebSocket server (used by openenv internally)
+uvicorn==0.42.0             # ASGI server
+fastmcp==3.2.0              # MCP protocol support (OpenEnv production mode)
+
+# ── Data Validation ───────────────────────────────────────────────────────────
+pydantic==2.12.5            # Action / Observation / State models
+
+# ── AI Agent Client ───────────────────────────────────────────────────────────
+openai==2.30.0              # OpenAI-compatible client (pointed at NVIDIA NIM)
+httpx==0.28.1               # Async HTTP transport used by openai client
+
+# ── Environment WebSocket ─────────────────────────────────────────────────────
+websockets==16.0            # WebSocket client used by EnvClient + test scripts
+
+# ── Oracle Solver ─────────────────────────────────────────────────────────────
+ortools==9.15.6755          # Google OR-Tools SCIP solver (oracle grader)
+
+# ── Deployment ────────────────────────────────────────────────────────────────
+huggingface_hub==1.9.0      # openenv push / HF Spaces deployment

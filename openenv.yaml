@@ -1,0 +1,15 @@
+version: "1.0"
+name: "disaster-relief-logistics"
+description: >
+  A high-stakes Disaster Relief & Medical Logistics environment.
+  The agent must route standard, critical, chemical, and medical pallets to helicopters. 
+  Features a Dynamic Weight Trap: mixing chemical and medical pallets triggers 
+  heavy containment penalties, simulating real-world hazmat constraints.
+entrypoint: "server.app:app"
+tasks:
+  - name: "easy"
+    description: "Standard weight routing without hazard mixing."
+  - name: "medium"
+    description: "Weight routing combined with critical priority triaging."
+  - name: "hard"
+    description: "Complex multi-objective routing with the Dynamic Weight Trap active."
