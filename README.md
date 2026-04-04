@@ -245,6 +245,72 @@ python test_3modes.py
 
 ---
 
+## 📐 Technical Specification (For Judges)
+
+Four details that the code enforces exactly, documented here for auditability.
+
+### 1. Priority Score — The Exact Math
+
+The Priority component of the reward is **not** a per-pallet binary flag. It is a continuous ratio computed once at episode end:
+
+```
+Priority = routed_criticals / total_criticals
+
+Where:
+  routed_criticals = number of "critical" pallets present in any helicopter's
+                     loaded_pallets list when remaining_pallets reaches zero
+  total_criticals  = total number of pallets in the scenario with priority="critical"
+
+Edge case: if the scenario has zero critical pallets, Priority defaults to 1.0
+           (full credit — the constraint does not apply)
+```
+
+This means an agent that routes all critical pallets but leaves standard pallets behind can still achieve a high Priority score (1.0), but its Utilization score will be low — creating genuine tension between the two objectives.
+
+### 2. Episode Termination — Win and Fail Conditions
+
+An episode ends under exactly three conditions:
+
+| Condition | Trigger | Reward |
+|-----------|---------|--------|
+| **Mission Complete** | `remaining_pallets == 0` (every pallet loaded) | Blended score (0.0–1.0) |
+| **Step Timeout** | `step_count >= 15` with pallets still unrouted | `0.0` |
+| **Physics Violation** | Capacity exceeded, illegal pallet ID, or internal error | `0.0` |
+
+A fourth condition exists but **does not end the episode**: if the agent repeats the same `(helicopter_id, pallet_id)` pair within the last 3 steps, it receives a `−0.5` soft penalty and play continues. This prevents hard failure on a single loop while still discouraging circular behavior.
+
+### 3. Oracle Timeout — Zero Effect on Agent Reward
+
+The **agent's reward is never computed by the oracle**. The blended score formula runs in pure Python arithmetic inside `_evaluate_final_solution()` and is returned to the agent before the oracle is consulted.
+
+The `RoutingOracle` (OR-Tools SCIP) is a separate auditing layer that populates the `oracle_comparison` field in the observation's `info` dict — visible to engineers inspecting logs, not part of the reward pipeline. If the solver exceeds its 500 ms time limit, it returns `feasible=False` with a timeout message. The agent's score is already issued and is completely unaffected.
+
+```
+Episode ends
+  └── _evaluate_final_solution() [pure Python]
+        ├── computes utilization ratio
+        ├── computes priority ratio
+        ├── returns blended_score → agent reward  ← THIS IS THE REWARD
+        └── generates oracle_report string
+              └── RoutingOracle.calculate_optimal_route() [OR-Tools, 500ms cap]
+                    └── result appended to info.oracle_comparison (logging only)
+```
+
+### 4. Hazmat Trap Communication — Explicit Prompt Injection
+
+The agent is **not** relying on Pydantic schema comments to learn about the trap. Every call to `_build_prompt()` in `inference.py` generates an explicit natural-language `hazmat_section` that is injected directly into the prompt text on every Hard-mode step:
+
+```
+⚠️ HAZMAT TRAP (HARD MODE) — THIS IS THE #1 CAUSE OF MISSION FAILURE:
+- If you load a "chemical" pallet into a helicopter that has ANY "medical" pallet,
+  OR a "medical" pallet into a helicopter that has ANY "chemical" pallet,
+  then +50 lb of containment equipment is INSTANTLY added to that helicopter.
+```
+
+The agent also receives a live `containment_penalty_active=True` flag in the helicopter observation — with an inline warning `⚠️ HAZMAT MIXED - DO NOT ADD chemical/medical` — if the trap has already been triggered on a given aircraft during the current episode. The model cannot miss it.
+
+---
+
 ## 🏆 Why This Stands Out
 
 Most logistics environments route packages to warehouses. This one routes **blood plasma and hazardous chemicals to disaster zones under real aviation safety constraints**.
