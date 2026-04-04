@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 SOLVER_BACKEND = "SCIP"
-SOLVER_TIME_LIMIT_MS = 5_000          # 5 seconds max — never freeze the server
+SOLVER_TIME_LIMIT_MS = 500            # 500 ms hard cap — graceful degradation before WebSocket drops
 INTEGER_THRESHOLD = 0.5               # OR-Tools returns 0.0/1.0 floats; threshold at 0.5
 
 
