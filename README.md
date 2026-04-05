@@ -328,6 +328,28 @@ Key finding: MEDIUM is trivially solvable because all pallets are safe-class and
 
 The repeat-action penalty is the **only** condition that does not end the episode. Physics violations (overweight, hazmat trap overflow) trigger `_trigger_failure()` which immediately terminates with `reward=0.0` — there is no recovery from a grounded helicopter. This asymmetry is intentional: the soft penalty teaches the agent to explore; the hard termination teaches it that some mistakes are irreversible.
 
+### 8. Trap + Physics — Exact Order of Operations
+
+A common question: does the weight trap kill the agent immediately, or does the +50 lb get applied and then the capacity check runs separately?
+
+The answer is in the code. `_step()` executes two layers in strict order:
+
+```
+Layer 2 — Dynamic Weight Trap (lines 188–211)
+  if chemical+medical mix detected on same helicopter:
+      target_heli.current_load += 50          ← penalty applied FIRST
+      trap_triggered = True
+
+Layer 3 — Capacity Check (lines 213–228)
+  if target_heli.current_load + pallet.weight > max_capacity:
+      _trigger_failure()                       ← THEN physics check runs
+      → reward = 0.0, done = True
+```
+
+The +50 lb containment penalty is **added to `current_load` before the capacity check evaluates**. If that penalty pushes the helicopter over its limit, the capacity check immediately fires `_trigger_failure()` with `reward=0.0` and terminates the episode. The reason string explicitly states: `"Crash caused by Dynamic Weight Trap (+50 lb containment penalty)."` There is no grace period — one wrong mix decision ends the mission.
+
+One additional detail: `_useful_load` (used for the Utilization score) is tracked separately from `current_load`. The containment penalty weight is added to `current_load` (the physics weight) but **not** to `_useful_load` (the scoring weight). This means a trap that doesn't immediately overflow still penalizes the agent's final Utilization score — the 50 lb of steel barrier counts as dead weight, not delivered cargo.
+
 ### 4. Hazmat Trap Communication — Explicit Prompt Injection
 
 The agent is **not** relying on Pydantic schema comments to learn about the trap. Every call to `_build_prompt()` in `inference.py` generates an explicit natural-language `hazmat_section` that is injected directly into the prompt text on every Hard-mode step:
