@@ -5,7 +5,7 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
-from openai import AsyncOpenAI
+from openai import OpenAI
 from client import SupplyChainEnvClient
 from models import LogisticsAction
 
@@ -28,16 +28,21 @@ def log_step(
     done: bool,
     error: Optional[str] = None,
 ) -> None:
-    err_str = f" error={error}" if error else ""
+    # Spec: done=true|false (lowercase), error=<msg|null> (always present)
+    done_str = "true" if done else "false"
+    error_str = error if error else "null"
     action_str = json.dumps(action) if action else "{}"
     print(
-        f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done}{err_str}",
+        f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_str} error={error_str}",
         flush=True,
     )
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+    # Spec: success=true|false (lowercase), rewards=r1,r2,... (comma-separated, no brackets)
+    success_str = "true" if success else "false"
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={success} steps={steps} score={score:.2f} rewards={rewards}",
+        f"[END] success={success_str} steps={steps} rewards={rewards_str}",
         flush=True,
     )
 
@@ -45,14 +50,18 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://integrate.api.nvidia.com/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "mistralai/devstral-2-123b-instruct-2512")
-ENV_BASE_URL = os.environ.get("ENV_URL", "http://127.0.0.1:7860")
+ENV_BASE_URL = os.environ.get("ENV_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
 RETRY_DELAY = 2.0
 
-# Attempt to get the key from the environment first (for the automated Scaler bot)
-API_KEY = os.environ.get("NVIDIA_API_KEY", "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")
+# Read key from HF_TOKEN (hackathon spec) or NVIDIA_API_KEY (legacy), with hardcoded fallback
+API_KEY = (
+    os.environ.get("HF_TOKEN")
+    or os.environ.get("NVIDIA_API_KEY")
+    or "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"
+)
 
 if not API_KEY or API_KEY == "NO_KEY_SET":
     logger.warning("⚠️ No key provided. AI brain disabled. Greedy fallback will run.")
@@ -239,7 +248,7 @@ def _greedy_fallback(obs: Dict[str, Any]) -> Optional[Dict[str, str]]:
 # ─── 6. AI BRAIN ──────────────────────────────────────────────────────────────
 
 async def get_model_action(
-    client: AsyncOpenAI, obs: Dict[str, Any]
+    client: OpenAI, obs: Dict[str, Any]
 ) -> Tuple[Optional[Dict[str, str]], bool]:
     """
     Returns (action, used_fallback).
@@ -253,7 +262,7 @@ async def get_model_action(
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             # Use stream=True as NVIDIA NIM requires for devstral
-            stream = await client.chat.completions.create(
+            stream = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.15,
@@ -265,7 +274,7 @@ async def get_model_action(
 
             # Collect streamed chunks into full response
             content_parts = []
-            async for chunk in stream:
+            for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content is not None:
                     content_parts.append(chunk.choices[0].delta.content)
             content = "".join(content_parts).strip()
@@ -303,7 +312,7 @@ async def get_model_action(
 
 # ─── 7. MAIN LOOP ─────────────────────────────────────────────────────────────
 
-async def _run_episode(env: "SupplyChainEnvClient", ai_client: AsyncOpenAI,
+async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
                        episode_num: int) -> tuple:
     """Run one full episode. Returns (success, score, difficulty, rewards)."""
     rewards: List[float] = []
@@ -370,19 +379,21 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: AsyncOpenAI,
             break
 
     success = score >= SUCCESS_THRESHOLD
-    log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+    log_end(success=success, steps=steps_taken, rewards=rewards)
     return success, score, difficulty, rewards
 
 
 async def main() -> None:
-    ai_client = AsyncOpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    ai_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
     all_results = []
+    any_episode_started = False
 
     try:
         # One WebSocket connection → 3 episodes: EASY → MEDIUM → HARD
         async with SupplyChainEnvClient(base_url=ENV_BASE_URL) as env:
             for ep in range(1, 4):
+                any_episode_started = True
                 success, score, diff, rewards = await _run_episode(env, ai_client, ep)
                 all_results.append((diff, score, success))
 
@@ -396,10 +407,12 @@ async def main() -> None:
         passed = sum(1 for _, _, ok in all_results if ok)
         print(f"\n  Overall: {passed}/3 modes passed (threshold >= {SUCCESS_THRESHOLD})")
 
-    except ConnectionError as e:
-        logger.error("Cannot connect to server: %s", e)
-        logger.error("Is the server running at %s?", ENV_BASE_URL)
-        sys.exit(1)
+    except Exception as e:
+        logger.error("Fatal error: %s", e)
+        # Spec: [END] must always be emitted, even on exception
+        if not any_episode_started:
+            log_start(task="disaster-relief-easy", env="OpenEnv-SupplyChain", model=MODEL_NAME)
+            log_end(success=False, steps=0, rewards=[])
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())

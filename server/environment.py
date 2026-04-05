@@ -420,7 +420,7 @@ class SupplyChainEnv(Environment):
     ) -> LogisticsObservation:
         """
         Build what the AI sees plus embedded reward and info.
-        Tyou i gpt he openenv framework calls .model_dump() on this object.
+        The openenv framework calls .model_dump() on this object.
         """
         return LogisticsObservation(
             step_count=self._step,
