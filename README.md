@@ -386,6 +386,80 @@ Key finding: MEDIUM is trivially solvable because all pallets are safe-class and
 
 The repeat-action penalty is the **only** condition that does not end the episode. Physics violations (overweight, hazmat trap overflow) trigger `_trigger_failure()` which immediately terminates with `reward=0.0` — there is no recovery from a grounded helicopter. This asymmetry is intentional: the soft penalty teaches the agent to explore; the hard termination teaches it that some mistakes are irreversible.
 
+### 9. Fallback Mechanism — Where It Lives
+
+The greedy fallback is defined in `inference.py` (the **agent wrapper**) as `_greedy_fallback()`. It is entirely client-side. The environment has no fallback logic — `environment.py` processes whatever valid action it receives and raises a failure if the action is structurally invalid.
+
+The fallback activates in exactly two situations, both inside `get_model_action()`:
+
+```
+1. No API key set → _greedy_fallback() called immediately (no LLM attempt)
+2. All MAX_RETRIES LLM attempts exhausted → _greedy_fallback() called as last resort
+```
+
+The greedy itself is hazmat-aware: it reads `_heli_hazard_map`, a module-level dict in `inference.py` that is updated by `_update_hazard_tracking()` after every step to track which hazard classes are loaded on each helicopter (since loaded pallets are removed from `remaining_pallets` in the observation and can't be looked up later). This means the fallback respects the same chemical/medical isolation rule as the LLM prompt.
+
+### 10. Hard Mode — Scaling Parameters
+
+All scenario constants are defined in `server/environment.py` and validated at server startup by `_validate_scenarios()`, which crashes the process if any scenario is mathematically impossible (total pallet weight > total fleet capacity).
+
+| Parameter | EASY | MEDIUM | HARD |
+|-----------|------|--------|------|
+| Pallets | 4 | 5 | 6 |
+| Total pallet weight | 100 lbs | 170 lbs | 190 lbs |
+| Fleet capacity | 2 × 60 lb = 120 lb | 2 × 100 lb = 200 lb | 3 helis = 280 lb |
+| Critical pallets | varies | 2 | 3 |
+| Hazard classes present | safe only | safe + 1 critical | medical + chemical + safe |
+| Dynamic Weight Trap | ❌ disabled | ❌ disabled | ✅ active (+50 lb) |
+| Max achievable score | 0.900 | 0.910 | 0.807 |
+
+Additional constants that govern all difficulties:
+
+```python
+CONTAINMENT_PENALTY_WEIGHT = 50   # lbs added on chemical+medical mix (hard only)
+MAX_STEPS                  = 15   # step budget per episode
+REPETITION_WINDOW          = 3    # repeat detection looks back N steps
+REPETITION_PENALTY         = -0.5 # soft penalty (episode continues)
+VALID_MOVE_REWARD          = 0.1  # reward per valid intermediate step
+FAILURE_REWARD             = 0.0  # reward on crash or timeout
+UTILIZATION_WEIGHT         = 0.60 # weight of fleet utilization in blended score
+PRIORITY_WEIGHT            = 0.40 # weight of critical delivery in blended score
+```
+
+### 11. Reward Ceiling Compression — Why 0.872 Not 1.0
+
+A score of `1.0` is mathematically impossible in any scenario. The formula is:
+
+```
+blended = 0.60 × (useful_weight_loaded / total_fleet_capacity)
+        + 0.40 × (critical_pallets_routed / total_critical_pallets)
+```
+
+The `total_fleet_capacity` denominator is always **larger** than `total_pallet_weight`. This is intentional: spare capacity is what gives the routing puzzle flexibility. If pallet weight exactly equalled fleet capacity, there would be only one valid solution, which would trivialize the problem.
+
+Because `useful_weight_loaded ≤ total_pallet_weight < total_fleet_capacity`, the utilization ratio is always strictly less than 1.0. The maximum achievable score per scenario is therefore fixed by scenario design, not by agent failure:
+
+```
+EASY   ceiling: 0.60 × (100/120) + 0.40 × 1.0 = 0.500 + 0.400 = 0.900
+MEDIUM ceiling: 0.60 × (170/200) + 0.40 × 1.0 = 0.510 + 0.400 = 0.910
+HARD   ceiling: 0.60 × (190/280) + 0.40 × 1.0 = 0.407 + 0.400 = 0.807
+```
+
+Both Devstral-2 and Llama-3.1-8B achieved the exact ceiling for every difficulty. The scores are not "compressed" — they are **optimal**. The threshold of 0.80 was set to require near-ceiling performance on all three scenarios.
+
+### 12. Oracle feasible=False — Effect on Episode State
+
+None. The `RoutingOracle` class in `oracle.py` is never imported or called by `environment.py`. The episode loop has no dependency on the oracle at any point.
+
+`_evaluate_final_solution()` — the method called on mission complete — computes the blended score entirely in Python arithmetic and returns a formatted string report. The `oracle_comparison` field in `LogisticsInfo` is populated by that pure-Python string, not by a solver call.
+
+```python
+# environment.py imports — oracle.py is not here
+from models import ReliefPallet, Helicopter, LogisticsObservation, LogisticsInfo, LogisticsState
+```
+
+`RoutingOracle` is a standalone auditing tool. It can be instantiated independently to verify whether a given assignment is feasible and to compare against the agent's solution — but this happens outside the episode lifecycle, not during it. `feasible=False` on a timeout therefore has zero consequence for the agent's reward, episode state, or termination.
+
 ### 8. Trap + Physics — Exact Order of Operations
 
 A common question: does the weight trap kill the agent immediately, or does the +50 lb get applied and then the capacity check runs separately?
