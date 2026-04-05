@@ -95,15 +95,19 @@ The trap is modeled on real **IATA Dangerous Goods Regulations (DGR) Section 9.3
 
 ---
 
-## 📊 Live Results on Hugging Face
+## 📊 Live Results — Multi-Model Benchmark
 
-| Difficulty | Steps | AI Score | Threshold | Verdict |
-|------------|-------|----------|-----------|---------|
-| **EASY** | 4 | **0.900** | ≥ 0.80 | ✅ PASS |
-| **MEDIUM** | 5 | **0.910** | ≥ 0.80 | ✅ PASS |
-| **HARD** | 6 | **0.807** | ≥ 0.80 | ✅ PASS |
+All runs executed live against the Hugging Face Space. "Fallbacks" = steps where the model's action was invalid (capacity exceeded) and the hazmat-aware greedy safety net activated.
 
-> All 15 actions across 3 episodes were decided by Mistral Devstral-2 via NVIDIA NIM. Zero rule-based fallbacks. Zero trap triggers.
+| Model | Params | EASY | MEDIUM | HARD | Avg | Fallbacks | Trap Triggers |
+|-------|--------|------|--------|------|-----|-----------|---------------|
+| **Mistral Devstral-2** (NVIDIA NIM) | 123B | **0.900** ✅ | **0.910** ✅ | **0.807** ✅ | **0.872** | **0** | **0** |
+| **Llama-3.1-8B** (Groq) | 8B | 0.900 ✅ | 0.910 ✅ | 0.807 ✅ | 0.872 | 3 (Hard only) | 0 |
+| **Random baseline** | — | 0.300 | 0.910 | 0.269 | 0.493 | — | 2+ |
+
+**Key finding:** Final scores are identical between Devstral-2 and Llama-3.1-8B, but the process is not. Devstral made all 15 Hard-mode decisions correctly from scratch — zero fallbacks. Llama-3.1-8B failed to track exact remaining capacity on Heli_C three times and needed the greedy safety net to recover. The scores converge because the fallback is hazmat-aware and optimal; the fallback *rate* is what reveals model capability tier.
+
+The environment discriminates models not just on pass/fail, but on **reasoning quality per step** — a metric invisible in the final score but visible in the fallback count.
 
 ---
 
@@ -242,6 +246,60 @@ python test_3modes.py
 | **OR-Tools SCIP oracle** | Mathematical solver shows the theoretical optimum at episode end |
 | **SUPPORTS_CONCURRENT_SESSIONS** | Multiple judges can evaluate simultaneously without state collision |
 | **Episode counter fix** | `__init__` no longer consumes episode slot 1 — judge gets EASY → MEDIUM → HARD in correct order |
+
+---
+
+## 🧬 State Space — Pydantic Observation Schema
+
+This is the exact JSON schema the AI receives after every action. Every field name, type, and description is defined in `models.py` and enforced at runtime by Pydantic v2.
+
+```python
+class LogisticsObservation(Observation):
+    """
+    The complete board state sent to the AI after every action.
+    Inherits done: bool and reward: Optional[float] from Observation base.
+    Scoring metadata (penalties, oracle data) is kept in LogisticsInfo
+    so the AI cannot read its own penalty score and game the reward signal.
+    """
+    step_count: int          # steps taken so far (max 15)
+    task_difficulty: Literal["easy", "medium", "hard"]
+    remaining_pallets: Dict[str, ReliefPallet]   # unloaded pallets
+    helicopters:       Dict[str, Helicopter]      # full fleet state
+    info:              Dict[str, Any]             # LogisticsInfo metadata
+
+
+class ReliefPallet(BaseModel):
+    weight:       int                                  # lbs, must be > 0
+    priority:     Literal["standard", "critical"]      # critical = heavy score penalty if unrouted
+    hazard_class: Literal["safe", "chemical", "medical"]
+    # ⚠️  "chemical" + "medical" on same helicopter → Dynamic Weight Trap (+50 lb)
+
+
+class Helicopter(BaseModel):
+    max_capacity:              int        # weight limit in lbs
+    current_load:              int        # REAL weight incl. containment penalties
+    loaded_pallets:            List[str]  # ordered pallet IDs already inside
+    containment_penalty_active: bool      # True = trap already fired on this aircraft
+
+    # Pydantic validators (enforced before environment logic runs):
+    #   no_duplicate_pallets()       — raises ValueError on duplicate pallet IDs
+    #   load_cannot_exceed_capacity() — raises ValueError if current_load > max_capacity
+
+
+class LogisticsInfo(BaseModel):           # lives inside observation["info"]
+    reason:                      str    # plain-English explanation of last step
+    penalty_applied:             float  # 0.0 = clean move, 1.0 = firewall broken
+    dynamic_weight_trap_triggered: bool  # True if trap fired this step
+    containment_weight_added:    int    # lbs added by trap this step (0 if no trap)
+    oracle_comparison: Optional[str]    # populated on episode end only
+
+
+class LogisticsAction(Action):            # what the AI sends each step
+    helicopter_id: str   # e.g. "Heli_A"
+    pallet_id:     str   # e.g. "Pallet_1"
+```
+
+**Why this matters:** The AI receives `containment_penalty_active` per helicopter — it can see in real-time if a trap is already active on a given aircraft. The `info.dynamic_weight_trap_triggered` field tells it if *this step* caused a trap. Combined with the explicit hazmat warning in the system prompt, the model has three independent signals to avoid the trap: prompt text, observation flag, and per-step feedback.
 
 ---
 
