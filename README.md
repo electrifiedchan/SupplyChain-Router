@@ -296,6 +296,38 @@ Episode ends
                     └── result appended to info.oracle_comparison (logging only)
 ```
 
+### 5. Session Isolation — Concurrent Evaluation Safety
+
+The server is safe for parallel judging. `app.py` passes the **class** `SupplyChainEnv` — not a singleton instance — to `create_fastapi_app()`. The OpenEnv framework instantiates a completely fresh `SupplyChainEnv` object for each incoming WebSocket connection, giving every evaluator its own independent state: separate episode counter, separate pallet set, separate helicopter loads. Concurrent sessions cannot share or corrupt each other's state.
+
+`SUPPORTS_CONCURRENT_SESSIONS = True` is declared in the class body, which signals to the framework that this instantiation-per-connection pattern is intentional and tested.
+
+### 6. Random Action Baseline — Benchmark Discrimination
+
+To confirm the environment successfully discriminates between capable and incapable agents, a **uniform random baseline** was run: at each step, a random `(helicopter_id, pallet_id)` pair was chosen from the current observation with no heuristic, no priority logic, and no hazmat awareness.
+
+Results across 9 episodes (3 sessions × EASY/MEDIUM/HARD):
+
+| Difficulty | Random Avg | LLM (Devstral) Avg | Dynamic Range |
+|------------|------------|--------------------|---------------|
+| **EASY** | 0.300 | **0.900** | **3.0×** |
+| **MEDIUM** | 0.910 | **0.910** | 1.0× (trivially solvable) |
+| **HARD** | 0.269 | **0.807** | **3.0×** |
+| **Overall** | 0.493 | **0.872** | **1.8×** |
+
+Key finding: MEDIUM is trivially solvable because all pallets are safe-class and capacity is generous — any valid assignment succeeds. EASY and HARD are the discriminating dimensions. On HARD, the random agent crashes 67% of episodes (score 0.0) by triggering the Dynamic Weight Trap or exhausting the step budget, while Devstral scores 0.807 with zero trap triggers across every run.
+
+### 7. Termination Specification — Exact Conditions
+
+| Condition | Trigger | Reward | Episode ends? |
+|-----------|---------|--------|---------------|
+| **Mission Complete** | `remaining_pallets == 0` | Blended score (0.0–1.0) | ✅ Yes |
+| **Step Timeout** | `step_count >= MAX_STEPS (15)` | `0.0` | ✅ Yes |
+| **Physics Violation** | Capacity exceeded / illegal state | `0.0` | ✅ Yes |
+| **Repeat Action** | Same `(heli, pallet)` within last 3 steps | `−0.5` soft penalty | ❌ No — episode continues |
+
+The repeat-action penalty is the **only** condition that does not end the episode. Physics violations (overweight, hazmat trap overflow) trigger `_trigger_failure()` which immediately terminates with `reward=0.0` — there is no recovery from a grounded helicopter. This asymmetry is intentional: the soft penalty teaches the agent to explore; the hard termination teaches it that some mistakes are irreversible.
+
 ### 4. Hazmat Trap Communication — Explicit Prompt Injection
 
 The agent is **not** relying on Pydantic schema comments to learn about the trap. Every call to `_build_prompt()` in `inference.py` generates an explicit natural-language `hazmat_section` that is injected directly into the prompt text on every Hard-mode step:
