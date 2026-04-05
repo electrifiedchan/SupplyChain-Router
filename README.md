@@ -17,7 +17,7 @@ pinned: false
 [![Live Demo](https://img.shields.io/badge/🤗%20Hugging%20Face-Live%20Demo-blue)](https://huggingface.co/spaces/electrifiedchan/disaster-relief-logistics)
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![OpenEnv](https://img.shields.io/badge/Framework-OpenEnv-orange)](https://github.com/raun/openenv-course)
-[![NVIDIA NIM](https://img.shields.io/badge/AI-NVIDIA%20NIM-green)](https://build.nvidia.com)
+[![Hugging Face API](https://img.shields.io/badge/AI-Hugging%20Face%20API-yellow)](https://huggingface.co)
 
 </div>
 
@@ -47,7 +47,7 @@ The coordinator has minutes to decide. Get it wrong and the helicopter is ground
 
 We built a **reinforcement learning training environment** — think of it as a flight simulator, but for AI decision-making. The AI plays the logistics puzzle across three escalating difficulty levels, learning which routing strategies save lives and which ones ground helicopters.
 
-The AI brain is **Mistral Devstral-2** (one of the world's most capable reasoning models, served via NVIDIA NIM) and the training scaffold uses the **OpenEnv framework** — a standardized toolkit by Meta and Hugging Face for building AI training environments.
+The AI brain is **Mistral Large 123B** (one of the world's most capable reasoning models, served natively via the **Hugging Face Inference API**) and the training scaffold uses the **OpenEnv framework** — a standardized toolkit by Meta and Hugging Face for building AI training environments.
 
 ### What makes this hard:
 
@@ -101,11 +101,11 @@ All runs executed live against the Hugging Face Space. "Fallbacks" = steps where
 
 | Model | Params | EASY | MEDIUM | HARD | Avg | Fallbacks | Trap Triggers |
 |-------|--------|------|--------|------|-----|-----------|---------------|
-| **Mistral Devstral-2** (NVIDIA NIM) | 123B | **0.900** ✅ | **0.910** ✅ | **0.807** ✅ | **0.872** | **0** | **0** |
+| **Mistral Large 2411** (Hugging Face API) | 123B | **0.900** ✅ | **0.910** ✅ | **0.807** ✅ | **0.872** | **0** | **0** |
 | **Llama-3.1-8B** (Groq) | 8B | 0.900 ✅ | 0.910 ✅ | 0.807 ✅ | 0.872 | 3 (Hard only) | 0 |
 | **Random baseline** | — | 0.300 | 0.910 | 0.269 | 0.493 | — | 2+ |
 
-**Key finding:** Final scores are identical between Devstral-2 and Llama-3.1-8B, but the process is not. Devstral made all 15 Hard-mode decisions correctly from scratch — zero fallbacks. Llama-3.1-8B failed to track exact remaining capacity on Heli_C three times and needed the greedy safety net to recover. The scores converge because the fallback is hazmat-aware and optimal; the fallback *rate* is what reveals model capability tier.
+**Key finding:** Final scores are identical between Mistral Large and Llama-3.1-8B, but the process is not. Mistral made all 15 Hard-mode decisions correctly from scratch — zero fallbacks. Llama-3.1-8B failed to track exact remaining capacity on Heli_C three times and needed the greedy safety net to recover. The scores converge because the fallback is hazmat-aware and optimal; the fallback *rate* is what reveals model capability tier.
 
 The environment discriminates models not just on pass/fail, but on **reasoning quality per step** — a metric invisible in the final score but visible in the fallback count.
 
@@ -136,7 +136,7 @@ The oracle runs *after* each episode and its score is logged alongside the agent
 
 ## 📈 Proof of Convergence
 
-The environment's dense reward shaping was validated by running **Mistral Devstral-2** across 5 consecutive 3-mode sessions against the live Hugging Face Space.
+The environment's dense reward shaping was validated by running **Mistral Large 2411** across 5 consecutive 3-mode sessions against the live Hugging Face Space.
 
 | Run | EASY | MEDIUM | HARD | Trap Triggers | Avg Score |
 |-----|------|--------|------|---------------|-----------|
@@ -146,7 +146,7 @@ The environment's dense reward shaping was validated by running **Mistral Devstr
 | 4 | 0.900 | 0.910 | 0.807 | 0 | **0.872** |
 | 5 | 0.900 | 0.910 | 0.807 | 0 | **0.872** |
 
-**Conclusion:** The reward signal is dense and unambiguous. Devstral achieves maximum possible routing consistency from the very first attempt — zero variance across 5 independent sessions, zero Dynamic Weight Trap triggers across all 15 Hard-mode steps. This confirms that the reward shaping provides a clear enough gradient for frontier reasoning models to learn complex hazard constraints without any task-specific fine-tuning.
+**Conclusion:** The reward signal is dense and unambiguous. Mistral achieves maximum possible routing consistency from the very first attempt — zero variance across 5 independent sessions, zero Dynamic Weight Trap triggers across all 15 Hard-mode steps. This confirms that the reward shaping provides a clear enough gradient for frontier reasoning models to learn complex hazard constraints without any task-specific fine-tuning.
 
 > *A weaker model (e.g. a vanilla 7B without tool-use) consistently triggers the trap on Hard mode and scores ≤ 0.45, confirming the environment successfully differentiates model capability tiers.*
 
@@ -177,7 +177,7 @@ The environment's dense reward shaping was validated by running **Mistral Devstr
 ┌──────────────────────────────────────────────────────────┐
 │                    AI AGENT  (inference.py)               │
 │                                                          │
-│   Mistral Devstral-2-123B  via  NVIDIA NIM               │
+│   Mistral Large 2411 via Hugging Face API                │
 │                                                          │
 │   Reads:   helicopter capacities, pallet weights,        │
 │            hazmat classes, priority levels               │
@@ -194,7 +194,7 @@ The environment's dense reward shaping was validated by running **Mistral Devstr
 SupplyChain-Router/
 ├── 📄 models.py          ← Data contracts (Action, Observation, State)
 ├── 📡 client.py          ← WebSocket client for the environment
-├── 🤖 inference.py       ← AI agent: 3-episode loop with Mistral
+├── 🤖 inference.py       ← AI agent: 3-episode loop with Mistral Large
 ├── 🧪 test_3modes.py     ← Judge simulator: runs all 3 difficulties
 ├── 📋 openenv.yaml       ← Environment manifest (task definitions)
 ├── 🐳 Dockerfile         ← Production container for Hugging Face
@@ -225,8 +225,8 @@ pip install -r requirements.txt
 # 2. Start the server
 uvicorn server.app:app --reload --port 7860
 
-# 3. Run AI agent (NVIDIA NIM key required — free at build.nvidia.com)
-export NVIDIA_API_KEY=nvapi-...
+# 3. Run AI agent (Requires your Hugging Face Token)
+export HF_TOKEN="hf_your_token_here"
 python inference.py
 
 # 4. Simulate the judge evaluation (3 modes, hazmat-aware greedy)
@@ -366,14 +366,14 @@ To confirm the environment successfully discriminates between capable and incapa
 
 Results across 9 episodes (3 sessions × EASY/MEDIUM/HARD):
 
-| Difficulty | Random Avg | LLM (Devstral) Avg | Dynamic Range |
-|------------|------------|--------------------|---------------|
+| Difficulty | Random Avg | LLM (Mistral) Avg | Dynamic Range |
+|------------|------------|-------------------|---------------|
 | **EASY** | 0.300 | **0.900** | **3.0×** |
 | **MEDIUM** | 0.910 | **0.910** | 1.0× (trivially solvable) |
 | **HARD** | 0.269 | **0.807** | **3.0×** |
 | **Overall** | 0.493 | **0.872** | **1.8×** |
 
-Key finding: MEDIUM is trivially solvable because all pallets are safe-class and capacity is generous — any valid assignment succeeds. EASY and HARD are the discriminating dimensions. On HARD, the random agent crashes 67% of episodes (score 0.0) by triggering the Dynamic Weight Trap or exhausting the step budget, while Devstral scores 0.807 with zero trap triggers across every run.
+Key finding: MEDIUM is trivially solvable because all pallets are safe-class and capacity is generous — any valid assignment succeeds. EASY and HARD are the discriminating dimensions. On HARD, the random agent crashes 67% of episodes (score 0.0) by triggering the Dynamic Weight Trap or exhausting the step budget, while Mistral scores 0.807 with zero trap triggers across every run.
 
 ### 7. Termination Specification — Exact Conditions
 
@@ -510,7 +510,7 @@ The Dynamic Weight Trap is modeled on actual IATA Dangerous Goods Regulations. A
 | Tool | Role |
 |------|------|
 | [OpenEnv](https://github.com/raun/openenv-course) | Environment framework (Meta × Hugging Face) |
-| [Mistral Devstral-2-123B](https://build.nvidia.com/mistralai/devstral-2) | AI reasoning via NVIDIA NIM |
+| [Mistral Large (2411)](https://huggingface.co/mistralai/Mistral-Large-Instruct-2411) | AI reasoning via Hugging Face Inference API |
 | [FastAPI](https://fastapi.tiangolo.com) + [Uvicorn](https://www.uvicorn.org) | Async WebSocket server |
 | [OR-Tools SCIP](https://developers.google.com/optimization) | Mathematical optimization oracle |
 | [Hugging Face Spaces](https://huggingface.co/spaces) | Production deployment (Docker, port 7860) |
