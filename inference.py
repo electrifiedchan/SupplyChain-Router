@@ -48,19 +48,18 @@ def log_end(success: bool, steps: int, rewards: List[float]) -> None:
 
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://integrate.api.nvidia.com/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "mistralai/devstral-2-123b-instruct-2512")
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "mistralai/Mistral-Large-Instruct-2411")
 ENV_BASE_URL = os.environ.get("ENV_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
 RETRY_DELAY = 2.0
 
-# Read key from HF_TOKEN (hackathon spec) or NVIDIA_API_KEY (legacy), with hardcoded fallback
+# Read key from HF_TOKEN (hackathon spec)
 API_KEY = (
     os.environ.get("HF_TOKEN")
-    or os.environ.get("NVIDIA_API_KEY")
-    or "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"
+    or ""
 )
 
 if not API_KEY or API_KEY == "NO_KEY_SET":

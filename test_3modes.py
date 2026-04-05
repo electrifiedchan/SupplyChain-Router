@@ -7,7 +7,7 @@ import os
 from client import SupplyChainEnvClient
 from models import LogisticsAction
 
-API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("NVIDIA_API_KEY") or "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"
+API_KEY = os.environ.get("HF_TOKEN") or ""
 ENV_URL = "https://electrifiedchan-disaster-relief-logistics.hf.space"
 SUCCESS_THRESHOLD = 0.80
 
