@@ -1,4 +1,5 @@
 import uvicorn
+from fastapi.responses import JSONResponse
 from openenv.core.env_server import create_fastapi_app
 from server.environment import SupplyChainEnv
 from models import LogisticsAction, LogisticsObservation
@@ -9,6 +10,12 @@ app = create_fastapi_app(
     LogisticsAction,
     LogisticsObservation,
 )
+
+
+@app.get("/")
+async def health_check():
+    """Root health check — HuggingFace Spaces pings this to verify the app is live."""
+    return JSONResponse({"status": "ok", "env": "disaster-relief-logistics"})
 
 
 def main() -> None:
