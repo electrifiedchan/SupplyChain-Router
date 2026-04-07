@@ -1,90 +1,16 @@
-16:38:42 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:42 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:44 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:44 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:44 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:44 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
-16:38:44 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:44 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:47 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:47 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:47 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:47 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_2'}
-16:38:47 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:47 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:50 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:50 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:50 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:50 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
-16:38:50 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:50 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:52 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:52 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:52 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:52 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_4'}
-16:38:53 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:53 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:55 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:55 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:55 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:55 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
-16:38:56 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:56 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:58 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:58 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:38:58 | WARNING | All model attempts failed. Using greedy fallback.
-16:38:58 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
-16:38:59 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:38:59 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:01 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:01 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:01 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:01 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_5'}
-16:39:02 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:02 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:04 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:04 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:04 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:04 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_2'}
-16:39:04 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:04 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:07 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:07 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:07 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:07 | INFO | Step 5: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_4'}
-16:39:07 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:07 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:10 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:10 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:10 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:10 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
-16:39:10 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:10 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:13 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:13 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:13 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:13 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
-16:39:13 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:13 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:15 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:15 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:15 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:15 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_6'}
-16:39:16 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:16 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:18 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:18 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:18 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:18 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_4'}
-16:39:19 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:19 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:21 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:21 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:21 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:21 | INFO | Step 5: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_2'}
-16:39:22 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:22 | WARNING | Attempt 1: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:24 | INFO | HTTP Request: POST https://router.huggingface.co/v1/chat/completions "HTTP/1.1 400 Bad Request"
-16:39:24 | WARNING | Attempt 2: API Error - Error code: 400 - {'error': {'message': "The requested model 'mistralai/Mistral-Large-Instruct-2411' is not a chat model.", 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_supported'}}
-16:39:24 | WARNING | All model attempts failed. Using greedy fallback.
-16:39:24 | INFO | Step 6: greedy fallback \u2192 {'helicopter_id': 'Heli_C', 'pallet_id': 'Pallet_5'}
+22:24:53 | WARNING | \u26a0\ufe0f No key provided. AI brain disabled. Greedy fallback will run.
+22:24:55 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
+22:24:55 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_2'}
+22:24:55 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
+22:24:56 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_4'}
+22:24:56 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
+22:24:56 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
+22:24:57 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_5'}
+22:24:57 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_2'}
+22:24:57 | INFO | Step 5: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_4'}
+22:24:58 | INFO | Step 1: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_1'}
+22:24:58 | INFO | Step 2: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_3'}
+22:24:58 | INFO | Step 3: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_6'}
+22:24:59 | INFO | Step 4: greedy fallback \u2192 {'helicopter_id': 'Heli_A', 'pallet_id': 'Pallet_4'}
+22:24:59 | INFO | Step 5: greedy fallback \u2192 {'helicopter_id': 'Heli_B', 'pallet_id': 'Pallet_2'}
+22:24:59 | INFO | Step 6: greedy fallback \u2192 {'helicopter_id': 'Heli_C', 'pallet_id': 'Pallet_5'}
