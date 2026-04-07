@@ -49,7 +49,7 @@ def log_end(success: bool, steps: int, rewards: List[float]) -> None:
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "mistralai/Mistral-Large-Instruct-2411")
+MODEL_NAME = os.environ.get("MODEL_NAME", "mistralai/Mistral-7B-Instruct-v0.3")
 ENV_BASE_URL = os.environ.get("ENV_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
