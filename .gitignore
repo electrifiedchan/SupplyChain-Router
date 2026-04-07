@@ -33,9 +33,7 @@ desktop.ini
 .pytest_cache/
 .coverage
 htmlcov/
-# Scratch test files (keep test_3modes.py — it's the judge simulator)
 test_ping.py
 test_all_difficulties.py
 
-# ── Build / Lock ─────────────────────────────────────────────────────────────
-uv.lock
+# NOTE: uv.lock is intentionally tracked (required by OpenEnv multi-mode deployment)
