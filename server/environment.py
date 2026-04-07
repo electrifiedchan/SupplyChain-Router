@@ -22,7 +22,7 @@ CONTAINMENT_PENALTY_WEIGHT: int = 50
 MAX_STEPS: int = 15
 DIFFICULTY_CYCLE: List[str] = ["easy", "medium", "hard"]
 VALID_MOVE_REWARD: float = 0.1       # +0.1 for every valid move
-FAILURE_REWARD: float = 0.0          # 0.0 on firewall breach or timeout
+FAILURE_REWARD: float = 0.001        # 0.001 on firewall breach or timeout
 REPETITION_PENALTY: float = -0.5     # soft penalty for repeated action (no episode end)
 REPETITION_WINDOW: int = 3           # track last N actions for repeat detection
 PENALTY_AMOUNT: float = 1.0
@@ -392,7 +392,8 @@ class SupplyChainEnv(Environment):
         blended = round(
             UTILIZATION_WEIGHT * utilization + PRIORITY_WEIGHT * priority, 3
         )
-        blended = max(0.0, min(1.0, blended))
+        # Clamp the score to strictly adhere to OpenEnv rules (0 < score < 1)
+        blended = max(0.001, min(0.999, float(blended)))
 
         report = (
             f"Score: {blended:.3f} | "
