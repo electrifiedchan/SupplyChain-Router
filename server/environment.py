@@ -151,10 +151,10 @@ class SupplyChainEnv(Environment):
             if parse_error:
                 return self._trigger_failure(parse_error)
 
-            # ── Repetition Check (soft -0.5 penalty, no episode end) ─────────
+            # ── Repetition Check (soft 0.0 penalty, no episode end) ──────────
             if (h_id, p_id) in self._action_history[-REPETITION_WINDOW:]:
                 logger.warning(
-                    "🔁 Repeat action detected: %s → %s. Applying -0.5 penalty.", p_id, h_id
+                    "🔁 Repeat action detected: %s → %s. Applying 0.0 penalty.", p_id, h_id
                 )
                 self._action_history.append((h_id, p_id))
                 return self._build_observation(
@@ -234,7 +234,7 @@ class SupplyChainEnv(Environment):
             target_heli.current_load += target_pallet.weight
             self._useful_load[h_id] += target_pallet.weight
 
-            step_reward = VALID_MOVE_REWARD  # flat +0.1 for every legal move
+            step_reward = VALID_MOVE_REWARD  # flat 0.0 for every legal move
 
             logger.info(
                 "✅ %s (%d lb, %s, %s) → %s | Load: %d/%d lb",
@@ -404,7 +404,7 @@ class SupplyChainEnv(Environment):
         return blended, report
 
     def _trigger_failure(self, reason: str) -> LogisticsObservation:
-        """End the episode immediately with zero reward and penalty flag."""
+        """End the episode immediately with clamped minimum reward and penalty flag."""
         if self._failure_reason is None:
             self._failure_reason = reason
         self._done = True
