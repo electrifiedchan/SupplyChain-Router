@@ -381,10 +381,10 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
 
     success = score >= SUCCESS_THRESHOLD
     task_name = f"disaster-relief-{difficulty} (episode {episode_num}/3)"
-    total_score = sum(rewards)
-    step_count = steps_taken
-    # Ensure the variable names match the ones in your local loop scope
-    log_end(task_id=task_name, score_val=total_score, steps=step_count)
+    
+    # CRITICAL FIX: Do NOT sum the rewards. The final 'score' variable already holds the correct blended score.
+    log_end(task_id=task_name, score_val=score, steps=steps_taken)
+    
     return success, score, difficulty, rewards
 
 
