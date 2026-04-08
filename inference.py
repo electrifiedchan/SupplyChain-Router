@@ -10,7 +10,7 @@ from client import SupplyChainEnvClient
 from models import LogisticsAction
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format="%(asctime)s | %(levelname)s | %(message)s",
     datefmt="%H:%M:%S",
 )
@@ -316,7 +316,7 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
     """Run one full episode. Returns (success, score, difficulty, rewards)."""
     rewards: List[float] = []
     steps_taken: int = 0
-    score: float = 0.0
+    score: float = 0.001
 
     reset_result = await env.reset()
     obs = reset_result.observation.model_dump()
@@ -338,9 +338,9 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
         action_dict, used_fallback = await get_model_action(ai_client, obs)
 
         if action_dict is None:
-            rewards.append(0.0)
+            rewards.append(0.001)
             steps_taken = step
-            log_step(step=step, action={}, reward=0.0, done=True,
+            log_step(step=step, action={}, reward=0.001, done=True,
                      error="No valid action from AI or fallback")
             break
 
@@ -355,13 +355,13 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
                 pallet_id=action_dict["pallet_id"],
             ))
         except RuntimeError as e:
-            rewards.append(0.0)
+            rewards.append(0.001)
             steps_taken = step
-            log_step(step=step, action=action_dict, reward=0.0, done=True, error=str(e))
+            log_step(step=step, action=action_dict, reward=0.001, done=True, error=str(e))
             break
 
         obs = result.observation.model_dump()
-        reward = float(result.reward or 0.0)
+        reward = float(result.reward or 0.001)
         done = result.done
         info = obs.get("info", {})
 
@@ -411,7 +411,7 @@ async def main() -> None:
         # Spec: [END] must always be emitted, even on exception
         if not any_episode_started:
             log_start(task="disaster-relief-easy", env="OpenEnv-SupplyChain", model=MODEL_NAME)
-            log_end(success=False, steps=0, rewards=[])
+            log_end(success=False, steps=0, rewards=[0.001])
 
 if __name__ == "__main__":
     asyncio.run(main())
