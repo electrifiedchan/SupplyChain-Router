@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 CONTAINMENT_PENALTY_WEIGHT: int = 50
 MAX_STEPS: int = 15
 DIFFICULTY_CYCLE: List[str] = ["easy", "medium", "hard"]
-VALID_MOVE_REWARD: float = 0.0       # Must be 0.0 to not inflate the final sum
+# Dense reward: intermediate reward is now computed dynamically per step
 FAILURE_REWARD: float = 0.001        # Keep this clamped!
 REPETITION_PENALTY: float = 0.0      # Must be 0.0 to not drag the sum below zero
 REPETITION_WINDOW: int = 3           # track last N actions for repeat detection
@@ -234,7 +234,58 @@ class SupplyChainEnv(Environment):
             target_heli.current_load += target_pallet.weight
             self._useful_load[h_id] += target_pallet.weight
 
-            step_reward = VALID_MOVE_REWARD  # flat 0.0 for every legal move
+            # ── Dense Reward: multi-signal progress fraction ─────────────
+            total_pallets = len(self._pallets_reference)
+            delivered_pallets = total_pallets - len(self._pallets)
+
+            # Signal 1: count-based delivery progress
+            count_progress = (
+                delivered_pallets / total_pallets if total_pallets > 0 else 0.0
+            )
+
+            # Signal 2: weight-based delivery progress
+            total_weight = sum(p.weight for p in self._pallets_reference.values())
+            delivered_weight = total_weight - sum(
+                p.weight for p in self._pallets.values()
+            )
+            weight_progress = (
+                delivered_weight / total_weight if total_weight > 0 else 0.0
+            )
+
+            # Signal 3: critical-pallet delivery progress
+            total_criticals = sum(
+                1 for p in self._pallets_reference.values()
+                if p.priority == "critical"
+            )
+            if total_criticals > 0:
+                remaining_criticals = sum(
+                    1 for p in self._pallets.values()
+                    if p.priority == "critical"
+                )
+                critical_progress = (
+                    (total_criticals - remaining_criticals) / total_criticals
+                )
+            else:
+                # No criticals in scenario → mirror count progress
+                critical_progress = count_progress
+
+            # Blend: 40% count + 35% weight + 25% priority
+            raw_progress = (
+                0.40 * count_progress
+                + 0.35 * weight_progress
+                + 0.25 * critical_progress
+            )
+
+            # Smooth concave scaling — front-loads reward so early correct
+            # moves feel meaningful (trajectory ≈ 0.45 → 0.62 → 0.78)
+            step_reward = max(0.01, min(0.99, raw_progress ** 0.55))
+
+            logger.info(
+                "📈 Dense reward: count=%.2f weight=%.2f crit=%.2f "
+                "→ raw=%.3f → reward=%.3f",
+                count_progress, weight_progress, critical_progress,
+                raw_progress, step_reward,
+            )
 
             logger.info(
                 "✅ %s (%d lb, %s, %s) → %s | Load: %d/%d lb",

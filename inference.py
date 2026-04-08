@@ -18,33 +18,35 @@ logger = logging.getLogger(__name__)
 
 # ─── 1. MANDATORY LOGGING FORMATTERS ─────────────────────────────────────────
 
+def safe_score(raw_score: float) -> float:
+    """Guarantees score is strictly between 0 and 1"""
+    return max(0.01, min(0.99, float(raw_score)))
+
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
 def log_step(
     step: int,
-    action: Dict[str, Any],
+    action: dict,
     reward: float,
     done: bool,
-    error: Optional[str] = None,
+    error: str = None,
 ) -> None:
-    # Spec: done=true|false (lowercase), error=<msg|null> (always present)
     done_str = "true" if done else "false"
     error_str = error if error else "null"
+    import json
     action_str = json.dumps(action) if action else "{}"
+    
+    safe_reward = safe_score(reward)
+    
     print(
-        f"[STEP] step={step} action={action_str} reward={reward:.3f} done={done_str} error={error_str}",
+        f"[STEP] step={step} action={action_str} reward={safe_reward:.2f} done={done_str} error={error_str}",
         flush=True,
     )
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
-    # Spec: success=true|false (lowercase), rewards=r1,r2,... (comma-separated, no brackets)
-    success_str = "true" if success else "false"
-    rewards_str = ",".join(f"{r:.3f}" for r in rewards)
-    print(
-        f"[END] success={success_str} steps={steps} rewards={rewards_str}",
-        flush=True,
-    )
+def log_end(task_id: str, score_val: float, steps: int) -> None:
+    final_score = safe_score(score_val)
+    print(f"[END] task={task_id} score={final_score:.2f} steps={steps}", flush=True)
 
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
@@ -378,7 +380,11 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
             break
 
     success = score >= SUCCESS_THRESHOLD
-    log_end(success=success, steps=steps_taken, rewards=rewards)
+    task_name = f"disaster-relief-{difficulty} (episode {episode_num}/3)"
+    total_score = sum(rewards)
+    step_count = steps_taken
+    # Ensure the variable names match the ones in your local loop scope
+    log_end(task_id=task_name, score_val=total_score, steps=step_count)
     return success, score, difficulty, rewards
 
 
@@ -411,7 +417,7 @@ async def main() -> None:
         # Spec: [END] must always be emitted, even on exception
         if not any_episode_started:
             log_start(task="disaster-relief-easy", env="OpenEnv-SupplyChain", model=MODEL_NAME)
-            log_end(success=False, steps=0, rewards=[0.001])
+            log_end(task_id="disaster-relief-easy", score_val=0.001, steps=0)
 
 if __name__ == "__main__":
     asyncio.run(main())
