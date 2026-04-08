@@ -33,14 +33,14 @@ def log_step(
     error_str = error if error else "null"
     action_str = json.dumps(action) if action else "{}"
     print(
-        f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_str} error={error_str}",
+        f"[STEP] step={step} action={action_str} reward={reward:.3f} done={done_str} error={error_str}",
         flush=True,
     )
 
 def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     # Spec: success=true|false (lowercase), rewards=r1,r2,... (comma-separated, no brackets)
     success_str = "true" if success else "false"
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    rewards_str = ",".join(f"{r:.3f}" for r in rewards)
     print(
         f"[END] success={success_str} steps={steps} rewards={rewards_str}",
         flush=True,
