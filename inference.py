@@ -50,7 +50,6 @@ def log_end(task_id: str, score_val: float, steps: int) -> None:
 
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 ENV_BASE_URL = os.environ.get("ENV_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
@@ -58,12 +57,18 @@ SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
 RETRY_DELAY = 2.0
 
-# Read key from HF_TOKEN (hackathon spec)
-API_KEY = (
-    os.environ.get("HF_TOKEN")
-    or ""
+import os
+from openai import OpenAI
+
+# This allows us to inject NVIDIA's URL via the command line
+llm_endpoint = os.environ.get("LLM_BASE_URL", "https://api-inference.huggingface.co/v1/")
+
+client = OpenAI(
+    base_url=llm_endpoint,
+    api_key=os.environ.get("API_KEY")
 )
 
+API_KEY = os.environ.get("API_KEY", "")
 if not API_KEY or API_KEY == "NO_KEY_SET":
     logger.warning("⚠️ No key provided. AI brain disabled. Greedy fallback will run.")
     API_KEY = "NO_KEY_SET"
@@ -71,11 +76,15 @@ if not API_KEY or API_KEY == "NO_KEY_SET":
 # ─── 3. PROMPT BUILDER ────────────────────────────────────────────────────────
 
 def _build_prompt(obs: Dict[str, Any]) -> str:
-    """Full detailed prompt including hazmat trap rules."""
+    """Full detailed prompt including hazmat trap rules and live telemetry."""
     pallets = obs.get("remaining_pallets", {})
     helicopters = obs.get("helicopters", {})
     difficulty = obs.get("task_difficulty", "unknown")
     step = obs.get("step_count", "?")
+    info = obs.get("info", {})
+    alert_msg = info.get("reason", "")
+    
+    telemetry_section = f"\n🚨 LIVE SYSTEM ALERT:\n{alert_msg}\n" if alert_msg and alert_msg != "Action accepted." else ""
 
     heli_lines = []
     for h_id, h in helicopters.items():
@@ -103,7 +112,7 @@ def _build_prompt(obs: Dict[str, Any]) -> str:
 
     return f"""You are an emergency response AI routing disaster relief pallets to helicopters.
 Difficulty: {difficulty.upper()} | Step: {step}
-
+{telemetry_section}
 RULES (violating ANY rule = mission failure, score 0.0):
 1. NEVER exceed a helicopter's max_capacity (check free space).
 2. Load "critical" priority pallets before "standard" ones.
@@ -382,14 +391,18 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
     success = score >= SUCCESS_THRESHOLD
     task_name = f"disaster-relief-{difficulty} (episode {episode_num}/3)"
     
-    # CRITICAL FIX: Do NOT sum the rewards. The final 'score' variable already holds the correct blended score.
-    log_end(task_id=task_name, score_val=score, steps=steps_taken)
+    # 🔒 GRADER REGEX LOCKDOWN (Fixes CVE-4.1) 🔒
+    import sys
+    # Bypasses standard print/loggers to guarantee clean regex scraping
+    grader_output = f"[END] task={task_name} score={score:.3f} steps={steps_taken}\n"
+    sys.stdout.write(grader_output)
+    sys.stdout.flush()
     
     return success, score, difficulty, rewards
 
 
 async def main() -> None:
-    ai_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    ai_client = client
 
     all_results = []
     any_episode_started = False
