@@ -99,6 +99,7 @@ Every response must be exactly this JSON structure and nothing else:
 
 The "hazard_check" field is your private scratchpad. It is ignored by the
 environment but forces you to verify safety before committing to an action.
+If a list of PRE-VERIFIED LEGAL MOVES is provided, you must select your action exclusively from that list.
 Do not output any text outside this JSON object.
 
 ══════════════════════════════════════════════════════════
@@ -187,6 +188,61 @@ Before choosing helicopter_id and pallet_id, answer in hazard_check:
   5. Have I received a METAR/NOTAM warning? If yes, avoid Heli_C immediately.
   6. Is Heli_C already grounded (capacity=0)? If yes, never route to it.
 """
+def _is_small_model(model_name: str) -> bool:
+    name_lower = model_name.lower()
+    for marker in ["70b", "72b", "123b", "devstral", "mixtral"]:
+        if marker in name_lower:
+            return False
+    return True
+
+def _build_legal_moves_block(obs: Dict[str, Any]) -> str:
+    pallets = obs.get("remaining_pallets", {})
+    helicopters = obs.get("helicopters", {})
+    difficulty = obs.get("task_difficulty", "unknown")
+    
+    HAZARD_PRIORITY = {"medical": 0, "chemical": 1, "safe": 2}
+    sorted_pallets = sorted(
+        pallets.items(),
+        key=lambda x: (
+            HAZARD_PRIORITY.get(x[1].get("hazard_class", "safe"), 2),
+            -x[1].get("weight", 0),
+        )
+    )
+
+    moves = []
+    for p_id, p_data in sorted_pallets:
+        weight = p_data.get("weight", 0)
+        hazard = p_data.get("hazard_class", "safe")
+        priority_str = f" [CRITICAL]" if p_data.get("priority") == "critical" else ""
+        hazard_str = f"{hazard.upper()}{priority_str}"
+        
+        valid_helis = {
+            h_id: h_data for h_id, h_data in helicopters.items()
+            if not (difficulty == "hard" and h_id == "Heli_C")
+        }
+        
+        for h_id, h_data in sorted(valid_helis.items(), key=lambda x: (x[1]["max_capacity"] - x[1]["current_load"])):
+            free = h_data["max_capacity"] - h_data["current_load"]
+            if weight > free:
+                continue
+            if _would_trigger_trap(h_id, hazard):
+                continue
+            
+            moves.append(
+                f'  {{"helicopter_id": "{h_id}", "pallet_id": "{p_id}"}} — {p_id} ({hazard_str}, {weight} lb) → {h_id} ({free} lb free)'
+            )
+            
+    if not moves:
+        return ""
+        
+    block = "\n✅ PRE-VERIFIED LEGAL MOVES\n══════════════════════════════════\n"
+    block += "Every move below has already passed capacity and hazmat checks.\n"
+    block += "Any move NOT on this list will be rejected by the environment.\n\n"
+    block += "\n".join(moves)
+    block += "\n\nApply your strategy (hazard segregation, critical-first, tornado avoidance)\n"
+    block += "to pick the BEST move from the list above.\n"
+    return block
+
 def _build_prompt(obs: Dict[str, Any]) -> str:
     """Full detailed prompt including hazmat trap rules and live telemetry."""
     pallets = obs.get("remaining_pallets", {})
@@ -210,7 +266,7 @@ def _build_prompt(obs: Dict[str, Any]) -> str:
             f"containment_penalty_active={trap}{trap_warning}"
         )
 
-    return f"""{SYSTEM_PROMPT}
+    base_prompt = f"""{SYSTEM_PROMPT}
 
 ══════════════════════════════════════════════════════════
 LIVE ENVIRONMENT STATE
@@ -223,6 +279,9 @@ HELICOPTERS:
 REMAINING PALLETS:
 {json.dumps(pallets, indent=2)}
 """
+    if not _is_small_model(MODEL_NAME):
+        return base_prompt
+    return base_prompt + _build_legal_moves_block(obs)
 
 # ─── 4. ACTION VALIDATOR ──────────────────────────────────────────────────────
 
