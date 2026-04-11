@@ -50,14 +50,22 @@ def log_end(task_id: str, score_val: float, steps: int) -> None:
 
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+import sys
+import os
+
+if len(sys.argv) > 1:
+    MODEL_NAME = sys.argv[1]
+else:
+    MODEL_NAME = os.environ.get("MODEL_NAME")
+    if not MODEL_NAME:
+        raise ValueError("Model name must be provided via command line argument (e.g., `python inference.py MODEL_NAME`) or the MODEL_NAME environment variable.")
+
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
 RETRY_DELAY = 2.0
 
-import os
 from openai import OpenAI
 
 # This allows us to inject NVIDIA's URL via the command line
