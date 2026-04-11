@@ -56,9 +56,8 @@ import os
 if len(sys.argv) > 1:
     MODEL_NAME = sys.argv[1]
 else:
-    MODEL_NAME = os.environ.get("MODEL_NAME")
-    if not MODEL_NAME:
-        raise ValueError("Model name must be provided via command line argument (e.g., `python inference.py MODEL_NAME`) or the MODEL_NAME environment variable.")
+    # Safe default for Phase 2 validation
+    MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
 
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
