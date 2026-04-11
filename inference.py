@@ -173,7 +173,7 @@ CHECKLIST — RUN THIS BEFORE EVERY ACTION
 Before choosing helicopter_id and pallet_id, answer in hazard_check:
 
   1. CAPACITY MATH: What is the exact weight of the pallet, and what is the free capacity of the target helicopter? Does it fit? (If no, pick a different helicopter).
-  2. What hazard class is the pallet I want to move?
+  2. LIVE HAZARD TRUTH: Look directly at the LIVE ENVIRONMENT STATE right now. What is the EXACT hazard_class value for this pallet? (Do not guess or assume!).
   3. What hazard classes are already loaded on my target helicopter?
   4. Is there a MEDICAL+CHEMICAL conflict? If yes, pick a different helicopter.
   5. Have I received a METAR/NOTAM warning? If yes, avoid Heli_C immediately.
