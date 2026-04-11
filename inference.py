@@ -172,11 +172,12 @@ CHECKLIST — RUN THIS BEFORE EVERY ACTION
 ══════════════════════════════════════════════════════════
 Before choosing helicopter_id and pallet_id, answer in hazard_check:
 
-  1. What hazard class is the pallet I want to move?
-  2. What hazard classes are already loaded on my target helicopter?
-  3. Is there a MEDICAL+CHEMICAL conflict? If yes, pick a different helicopter.
-  4. Have I received a METAR/NOTAM warning? If yes, avoid Heli_C immediately.
-  5. Is Heli_C already grounded (capacity=0)? If yes, never route to it.
+  1. CAPACITY MATH: What is the exact weight of the pallet, and what is the free capacity of the target helicopter? Does it fit? (If no, pick a different helicopter).
+  2. What hazard class is the pallet I want to move?
+  3. What hazard classes are already loaded on my target helicopter?
+  4. Is there a MEDICAL+CHEMICAL conflict? If yes, pick a different helicopter.
+  5. Have I received a METAR/NOTAM warning? If yes, avoid Heli_C immediately.
+  6. Is Heli_C already grounded (capacity=0)? If yes, never route to it.
 """
 def _build_prompt(obs: Dict[str, Any]) -> str:
     """Full detailed prompt including hazmat trap rules and live telemetry."""
