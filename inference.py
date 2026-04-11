@@ -48,37 +48,36 @@ def log_end(task_id: str, score_val: float, steps: int) -> None:
     final_score = safe_score(score_val)
     print(f"[END] task={task_id} score={final_score:.2f} steps={steps}", flush=True)
 
-# ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
+# ─── 2. SETTINGS & AUTH (Validator Compliant) ───────────────────────────────
 
 import sys
 import os
+from openai import OpenAI
 
-if len(sys.argv) > 1:
-    MODEL_NAME = sys.argv[1]
-else:
-    # Safe default for Phase 2 validation
-    MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
+# The validator explicitly injects API_BASE_URL and API_KEY.
+# We MUST use these exactly as named.
+API_BASE_URL = os.environ.get("API_BASE_URL")
+API_KEY = os.environ.get("API_KEY")
+
+# Safety Check: If the validator didn't provide them, fallback to defaults 
+# ONLY for local testing. In the portal, these will be set.
+if not API_BASE_URL:
+    API_BASE_URL = "https://router.huggingface.co/hf-inference/v1"
+if not API_KEY:
+    API_KEY = "NO_KEY_SET"
+
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=API_KEY
+)
+
+MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
 
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
 RETRY_DELAY = 2.0
-
-from openai import OpenAI
-
-# This allows us to inject NVIDIA's URL via the command line
-llm_endpoint = os.environ.get("LLM_BASE_URL", "https://api-inference.huggingface.co/v1/")
-
-client = OpenAI(
-    base_url=llm_endpoint,
-    api_key=os.environ.get("API_KEY")
-)
-
-API_KEY = os.environ.get("API_KEY", "")
-if not API_KEY or API_KEY == "NO_KEY_SET":
-    logger.warning("⚠️ No key provided. AI brain disabled. Greedy fallback will run.")
-    API_KEY = "NO_KEY_SET"
 
 # ─── 3. PROMPT BUILDER ────────────────────────────────────────────────────────
 
@@ -425,8 +424,8 @@ async def get_model_action(
     Returns (action, used_fallback).
     used_fallback=True means greedy answered, not the AI model.
     """
-    if API_KEY == "NO_KEY_SET":
-        return _greedy_fallback(obs), True
+    if API_KEY == "NO_KEY_SET" and os.environ.get("SUBMISSION_ENV") == "production":
+        raise ValueError("Validator Error: API_KEY is missing in production environment.")
 
     prompt = _build_prompt(obs)
 
