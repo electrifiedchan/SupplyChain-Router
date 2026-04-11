@@ -313,38 +313,47 @@ def _would_trigger_trap(h_id: str, pallet_hazard: str) -> bool:
 
 def _greedy_fallback(obs: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """
-    Rule-based fallback when AI model fails.
-    Respects hazmat rules and prefers critical pallets.
+    Hazmat-aware First-Fit-Decreasing fallback.
+    Logic:
+      1. Constrained first (Medical/Chemical) to prevent safe pallets from 'orphaning' them.
+      2. Heaviest first (FFD) to minimize wasted bin space.
+      3. Best-Fit heli sort (Tightest fit) to leave large contiguous blocks of space.
     """
     pallets = obs.get("remaining_pallets", {})
     helicopters = obs.get("helicopters", {})
-    difficulty = obs.get("task_difficulty", "easy")
+    difficulty = obs.get("task_difficulty", "unknown")
 
-    if not pallets or not helicopters:
-        return None
+    # Constrained pallets (Medical=0, Chemical=1) get priority over Safe=2
+    HAZARD_PRIORITY = {"medical": 0, "chemical": 1, "safe": 2}
 
-    # Sort: critical first, then heaviest first
     sorted_pallets = sorted(
         pallets.items(),
         key=lambda x: (
-            0 if x[1].get("priority") == "critical" else 1,
+            HAZARD_PRIORITY.get(x[1].get("hazard_class", "safe"), 2),
             -x[1].get("weight", 0),
-        ),
+        )
     )
 
     for p_id, p_data in sorted_pallets:
         weight = p_data.get("weight", 0)
         hazard = p_data.get("hazard_class", "safe")
 
-        for h_id, h_data in helicopters.items():
+        # TORNADO BLOCK: Never route to Heli_C in Hard Mode
+        valid_helis = {
+            h_id: h_data for h_id, h_data in helicopters.items()
+            if not (difficulty == "hard" and h_id == "Heli_C")
+        }
+
+        # BEST-FIT: Sort helis by tightest fit first to minimize fragmentation
+        for h_id, h_data in sorted(
+            valid_helis.items(),
+            key=lambda x: (x[1]["max_capacity"] - x[1]["current_load"])
+        ):
             free = h_data["max_capacity"] - h_data["current_load"]
             if weight > free:
                 continue
-
-            # On hard: check hazmat compatibility using our tracking
-            if difficulty == "hard" and _would_trigger_trap(h_id, hazard):
+            if _would_trigger_trap(h_id, hazard):
                 continue
-
             return {"helicopter_id": h_id, "pallet_id": p_id}
 
     return None
@@ -369,7 +378,7 @@ async def get_model_action(
             stream = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.15,
+                temperature=0.1,
                 top_p=0.95,
                 max_tokens=512,
                 seed=42,
