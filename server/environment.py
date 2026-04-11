@@ -17,6 +17,8 @@ from models import (
 
 logger = logging.getLogger(__name__)
 
+print("--- LOGISTICS SERVER INITIALIZED: HELI_B CAPACITY = 75 ---", flush=True)
+
 # ─── Constants ────────────────────────────────────────────────────────────────
 CONTAINMENT_PENALTY_WEIGHT: int = 50
 MAX_STEPS: int = 15
@@ -44,32 +46,32 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
     },
     "medium": {
         "pallets": {
-            "Pallet_1": ReliefPallet(weight=45, priority="critical", hazard_class="safe"),
+            "Pallet_1": ReliefPallet(weight=45, priority="critical", hazard_class="medical"),
             "Pallet_2": ReliefPallet(weight=40, priority="standard", hazard_class="safe"),
-            "Pallet_3": ReliefPallet(weight=35, priority="critical", hazard_class="safe"),
+            "Pallet_3": ReliefPallet(weight=35, priority="critical", hazard_class="medical"),
             "Pallet_4": ReliefPallet(weight=30, priority="standard", hazard_class="safe"),
             "Pallet_5": ReliefPallet(weight=20, priority="standard", hazard_class="safe"),
             "Pallet_6": ReliefPallet(weight=10, priority="standard", hazard_class="safe"),
         },
         "helicopters": {
-            "Heli_A": Helicopter(max_capacity=70),
-            "Heli_B": Helicopter(max_capacity=65),
-            "Heli_C": Helicopter(max_capacity=45),
+            "Heli_A": Helicopter(max_capacity=80),
+            "Heli_B": Helicopter(max_capacity=80), 
+            "Heli_C": Helicopter(max_capacity=60),
         },
     },
     "hard": {
         "pallets": {
-            "Pallet_1": ReliefPallet(weight=30, priority="critical",  hazard_class="medical"),
-            "Pallet_2": ReliefPallet(weight=40, priority="standard",  hazard_class="chemical"),
+            "Pallet_1": ReliefPallet(weight=40, priority="critical",  hazard_class="medical"),
+            "Pallet_2": ReliefPallet(weight=40, priority="critical",  hazard_class="chemical"),
             "Pallet_3": ReliefPallet(weight=20, priority="critical",  hazard_class="safe"),
-            "Pallet_4": ReliefPallet(weight=50, priority="standard",  hazard_class="safe"),
-            "Pallet_5": ReliefPallet(weight=30, priority="standard",  hazard_class="medical"),
-            "Pallet_6": ReliefPallet(weight=20, priority="critical",  hazard_class="chemical"),
+            "Pallet_4": ReliefPallet(weight=40, priority="standard",  hazard_class="safe"),
+            "Pallet_5": ReliefPallet(weight=20, priority="standard",  hazard_class="medical"),
+            "Pallet_6": ReliefPallet(weight=20, priority="standard",  hazard_class="chemical"),
         },
         "helicopters": {
-            "Heli_A": Helicopter(max_capacity=100),
-            "Heli_B": Helicopter(max_capacity=100),
-            "Heli_C": Helicopter(max_capacity=80),
+            "Heli_A": Helicopter(max_capacity=110),
+            "Heli_B": Helicopter(max_capacity=110),
+            "Heli_C": Helicopter(max_capacity=40),
         },
     },
 }
@@ -134,9 +136,18 @@ class SupplyChainEnv(Environment):
 
             self._step += 1
 
-            h_id, p_id, parse_error = self._parse_action(action)
-            if parse_error:
-                return self._trigger_failure(parse_error)
+            try:
+                h_id, p_id, parse_error = self._parse_action(action)
+                if parse_error or h_id is None or p_id is None:
+                    return self._build_observation(
+                        reward=0.01,
+                        info=LogisticsInfo(reason="NO_VALID_ACTION_AVAILABLE", penalty_applied=0.0)
+                    )
+            except Exception:
+                return self._build_observation(
+                    reward=0.01,
+                    info=LogisticsInfo(reason="INVALID_OR_EMPTY_ACTION", penalty_applied=0.0)
+                )
 
             if (h_id, p_id) in self._action_history[-REPETITION_WINDOW:]:
                 self._action_history.append((h_id, p_id))
@@ -250,10 +261,15 @@ class SupplyChainEnv(Environment):
                     )
                 elif self._step >= 4 and self._anomaly_triggered:
                     if "Heli_C" in self._helicopters:
-                        self._helicopters["Heli_C"].max_capacity = 0
+                        # Reordered for Pydantic 'validate_assignment' safety
+                        self._helicopters["Heli_C"].current_load = 0   # 1. Reset load
+                        self._helicopters["Heli_C"].loaded_pallets = [] # 2. Clear inventory
+                        self._helicopters["Heli_C"].max_capacity = 0    # 3. Finally ground
+                        
                     self._active_alert = (
                         "CRITICAL TELEMETRY OVERRIDE: "
-                        "TORNADO IMPACT CONFIRMED. Heli_C IS GROUNDED (CAPACITY = 0). DO NOT ROUTE TO Heli_C."
+                        "TORNADO IMPACT CONFIRMED. Heli_C IS GROUNDED. "
+                        "CARGO EVACUATED."
                     )
 
             return self._build_observation(

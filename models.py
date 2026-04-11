@@ -56,7 +56,7 @@ class Helicopter(BaseModel):
 
     max_capacity: int = Field(
         ...,
-        gt=0,
+        ge=0,
         description="Maximum weight the helicopter can carry before it is unsafe to fly.",
         json_schema_extra={"example": 80},
     )

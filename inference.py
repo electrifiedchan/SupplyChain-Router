@@ -51,7 +51,7 @@ def log_end(task_id: str, score_val: float, steps: int) -> None:
 # ─── 2. SETTINGS & INTERACTIVE AUTH ───────────────────────────────────────────
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-ENV_BASE_URL = os.environ.get("ENV_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
+ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://electrifiedchan-disaster-relief-logistics.hf.space")
 MAX_STEPS = 15
 SUCCESS_THRESHOLD = 0.80  # blended score must hit 0.80 to count as success
 MAX_RETRIES = 2
@@ -75,6 +75,109 @@ if not API_KEY or API_KEY == "NO_KEY_SET":
 
 # ─── 3. PROMPT BUILDER ────────────────────────────────────────────────────────
 
+SYSTEM_PROMPT = """You are an expert disaster-relief logistics AI. Your job is to route cargo pallets
+onto helicopters one at a time. Each action you output must be a single JSON object.
+
+══════════════════════════════════════════════════════════
+OUTPUT FORMAT — NON-NEGOTIABLE
+══════════════════════════════════════════════════════════
+Every response must be exactly this JSON structure and nothing else:
+
+{
+  "hazard_check": "<your one-sentence reasoning about hazard compatibility>",
+  "helicopter_id": "<Heli_A | Heli_B | Heli_C>",
+  "pallet_id": "<Pallet_1 through Pallet_6>"
+}
+
+The "hazard_check" field is your private scratchpad. It is ignored by the
+environment but forces you to verify safety before committing to an action.
+Do not output any text outside this JSON object.
+
+══════════════════════════════════════════════════════════
+HARD RULE — CARGO SEGREGATION (READ THIS BEFORE EVERY MOVE)
+══════════════════════════════════════════════════════════
+MEDICAL and CHEMICAL pallets must NEVER share the same helicopter.
+
+If you load a CHEMICAL pallet onto a helicopter that already carries any
+MEDICAL pallet — or vice versa — the environment immediately applies a
++50 lb CONTAINMENT PENALTY to that helicopter's current load.
+
+This penalty is PERMANENT and CANNOT be undone.
+In most cases it will cause the next pallet to overflow the capacity limit,
+which triggers a Physics Violation and ends the episode with score = 0.001.
+
+SAFE pallets have no restriction. They can fly with any cargo.
+
+══════════════════════════════════════════════════════════
+EXAMPLE — WHAT NOT TO DO (study this carefully)
+══════════════════════════════════════════════════════════
+Situation:
+  Heli_A manifest: [Pallet_1 (MEDICAL, 40 lb)]  — load = 40/110 lb
+  Remaining: Pallet_2 (CHEMICAL, 40 lb)
+
+WRONG action:
+  {"hazard_check": "Heli_A has space, loading Pallet_2.", "helicopter_id": "Heli_A", "pallet_id": "Pallet_2"}
+
+What happens:
+  MEDICAL + CHEMICAL on same helicopter → TRAP fires.
+  Heli_A load becomes 40 (existing) + 50 (penalty) = 90 lb.
+  Then Pallet_2 (40 lb) is added: 90 + 40 = 130 lb > 110 lb capacity.
+  Result: Physics Violation. Episode ends. Score = 0.001.
+
+CORRECT action:
+  {"hazard_check": "Heli_A has MEDICAL cargo. Pallet_2 is CHEMICAL. Incompatible. Route to Heli_B which has no medical.", "helicopter_id": "Heli_B", "pallet_id": "Pallet_2"}
+
+Why it works:
+  Heli_B has no medical cargo, so chemical is safe there.
+  No penalty. No overflow. Mission continues.
+
+══════════════════════════════════════════════════════════
+STRATEGY — HOW TO ROUTE CORRECTLY EVERY TIME
+══════════════════════════════════════════════════════════
+Step 1 — Sort pallets into three groups before your first move:
+  • MEDICAL group:   Pallet_1, Pallet_5
+  • CHEMICAL group:  Pallet_2, Pallet_6
+  • SAFE group:      Pallet_3, Pallet_4
+  *CRITICAL RULE: Pallet weights change depending on the difficulty mode. NEVER assume a pallet's weight from past examples. ALWAYS read the live observation state to verify the exact weight before calculating free capacity.*
+
+Step 2 — Assign one helicopter to MEDICAL, one to CHEMICAL:
+  • Pick one helicopter (e.g. Heli_A) → receives ALL medical pallets.
+  • Pick another helicopter (e.g. Heli_B) → receives ALL chemical pallets.
+  • NEVER mix these two helicopters' assigned hazard class.
+  • SAFE pallets fill remaining space on either helicopter.
+
+Step 3 — Handle the TORNADO anomaly (Hard Mode only):
+  • In Hard Mode, Heli_C will be struck by a tornado and grounded at Step 4.
+  • ANY cargo placed on Heli_C before the tornado hits will be DESTROYED, instantly ruining your score.
+  • Therefore, NEVER route any pallets to Heli_C in Hard Mode. Ignore it completely from Step 1. Use only Heli_A and Heli_B.
+  • (In Medium Mode, there is no tornado, and you MUST use Heli_C to fit all 180 lb of cargo).
+
+Step 4 — Prioritise CRITICAL pallets:
+  • Pallet_1, Pallet_2, Pallet_3 are marked critical.
+  • Route critical pallets before standard ones where possible.
+  • The scoring formula rewards critical delivery at 40% weight.
+  • PRO TIP: Always load Pallet_5 and Pallet_6 BEFORE Pallet_4 to ensure you do not run out of hazardous capacity on your helicopters.
+
+══════════════════════════════════════════════════════════
+SCORING (so you understand what you are optimising)
+══════════════════════════════════════════════════════════
+  Final score = 0.60 × (useful weight routed / 260 lb baseline)
+              + 0.40 × (critical pallets routed / 3 total criticals)
+
+  Perfect routing (all 6 pallets, all 3 criticals, no trap) → score ≈ 0.815
+  Any trap trigger or unrouted pallet reduces score toward 0.001.
+
+══════════════════════════════════════════════════════════
+CHECKLIST — RUN THIS BEFORE EVERY ACTION
+══════════════════════════════════════════════════════════
+Before choosing helicopter_id and pallet_id, answer in hazard_check:
+
+  1. What hazard class is the pallet I want to move?
+  2. What hazard classes are already loaded on my target helicopter?
+  3. Is there a MEDICAL+CHEMICAL conflict? If yes, pick a different helicopter.
+  4. Have I received a METAR/NOTAM warning? If yes, avoid Heli_C immediately.
+  5. Is Heli_C already grounded (capacity=0)? If yes, never route to it.
+"""
 def _build_prompt(obs: Dict[str, Any]) -> str:
     """Full detailed prompt including hazmat trap rules and live telemetry."""
     pallets = obs.get("remaining_pallets", {})
@@ -98,36 +201,18 @@ def _build_prompt(obs: Dict[str, Any]) -> str:
             f"containment_penalty_active={trap}{trap_warning}"
         )
 
-    hazmat_section = ""
-    if difficulty == "hard":
-        hazmat_section = """
-⚠️ HAZMAT TRAP (HARD MODE) — THIS IS THE #1 CAUSE OF MISSION FAILURE:
-- If you load a "chemical" pallet into a helicopter that has ANY "medical" pallet,
-  OR a "medical" pallet into a helicopter that has ANY "chemical" pallet,
-  then +50 lb of containment equipment is INSTANTLY added to that helicopter.
-- This almost always causes an overload crash and score = 0.0.
-- STRATEGY: Keep ALL chemical pallets on one helicopter, ALL medical on another.
-  Use a third helicopter for "safe" pallets. NEVER mix chemical and medical.
-"""
+    return f"""{SYSTEM_PROMPT}
 
-    return f"""You are an emergency response AI routing disaster relief pallets to helicopters.
+══════════════════════════════════════════════════════════
+LIVE ENVIRONMENT STATE
+══════════════════════════════════════════════════════════
 Difficulty: {difficulty.upper()} | Step: {step}
 {telemetry_section}
-RULES (violating ANY rule = mission failure, score 0.0):
-1. NEVER exceed a helicopter's max_capacity (check free space).
-2. Load "critical" priority pallets before "standard" ones.
-{hazmat_section}
 HELICOPTERS:
 {chr(10).join(heli_lines)}
 
 REMAINING PALLETS:
 {json.dumps(pallets, indent=2)}
-
-Think about which helicopter can safely hold this pallet WITHOUT exceeding capacity
-and WITHOUT mixing chemical+medical hazard classes.
-
-Output exactly ONE JSON object. No markdown. No explanation.
-Example: {{"helicopter_id": "Heli_A", "pallet_id": "Pallet_1"}}
 """
 
 # ─── 4. ACTION VALIDATOR ──────────────────────────────────────────────────────
@@ -359,6 +444,10 @@ async def _run_episode(env: "SupplyChainEnvClient", ai_client: OpenAI,
             logger.info("Step %d: greedy fallback → %s", step, action_dict)
 
         _update_hazard_tracking(obs, action_dict)
+
+        # Scrub the reasoning key so the environment logger outputs clean standard JSON
+        if "hazard_check" in action_dict:
+            del action_dict["hazard_check"]
 
         try:
             result = await env.step(LogisticsAction(
