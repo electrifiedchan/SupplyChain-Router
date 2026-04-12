@@ -51,6 +51,7 @@ We built SupplyChain-Router to make rigor **inescapable**. Every constraint in o
 | **Ignoring context** | METAR tornado injection at Step 3 | Agent loads cargo onto `Heli_C` → tornado grounds it → cargo destroyed |
 | **Hallucinating safety** | Hazmat containment trap (`+50 lb`) | Medical + Chemical mixing triggers irreversible weight penalty → physics violation |
 | **Sloppy outputs** | Pydantic `validate_assignment` firewall | Malformed JSON, duplicate pallets, or overloaded manifests crash instantly |
+| **Mental arithmetic** | Neuro-Symbolic legal move injection | LLM receives pre-verified move list; Python handles all capacity math |
 
 ---
 
@@ -149,16 +150,53 @@ The truncation engine:
 - Sorts by hazard priority (constrained pallets first) and weight (heaviest first)
 - Only activates for small models; large models (70B+) receive the full observation and reason independently
 
+### 🎲 Procedural Generation — No Two Runs Are Identical
+
+To prevent hardcoded routing and validate true generalization, every 
+episode applies a **seeded weight jitter** to all pallets at 
+initialization:
+
+```python
+# Every pallet gets ±5 lb random jitter per episode
+base_weights = {pid: p.weight for pid, p in pallets_base.items()}
+for _ in range(10):  # Re-roll up to 10x if scenario becomes infeasible
+    for pid, p in pallets_base.items():
+        p.weight = max(1, base_weights[pid] + random.randint(-5, 5))
+    if sum(p.weight for p in pallets_base.values()) <= total_fleet_capacity:
+        break
+```
+
+Each run is seeded and logged for reproducibility:
+
+```
+[START] initialization seed=7341
+```
+
+> [!NOTE]
+> The jitter always reads from `base_weights` — a frozen snapshot 
+> taken before the loop. This prevents re-roll drift where each 
+> iteration compounds on the previous jitter instead of the true 
+> original weight.
+
+The feasibility guard ensures the scenario is always mathematically 
+solvable. If 10 re-rolls all produce an infeasible board, the system 
+falls back to original base weights — silent, graceful, never a crash.
+
 ### 🔀 Model-Agnostic Architecture
 
 The system is optimized for both ends of the capability spectrum:
 
 | Model Class | Strategy | Example |
 | :--- | :--- | :--- |
-| **Large (70B+)** | Full observation + system prompt reasoning | `Llama 3.3 70B Instruct` |
+| **Large (70B+)** | Full observation + 6-point checklist + pre-verified legal moves | `Llama 3.3 70B Instruct` |
 | **Small (≤ 8B)** | Truncated action space + pre-verified legal moves | `Llama 3.1 8B Instruct` |
 
-A `_is_small_model()` classifier automatically detects the model tier and adjusts the prompt pipeline. No configuration needed.
+A `_is_small_model()` classifier detects the model tier and 
+adjusts prompt verbosity. However, the pre-verified legal moves 
+block is injected universally — every model receives it, 
+regardless of size. Production-grade AI agents do not ask LLMs 
+to calculate `210 - 65`; they calculate it in code and hand the 
+LLM the legal options.
 
 ---
 
@@ -345,6 +383,18 @@ SupplyChain-Router/
 **Why a +50 lb penalty instead of instant failure?** The containment penalty creates a **cascading failure** rather than an immediate one. The agent sees its helicopter's load jump and must decide whether to continue or adapt. This tests the model's ability to read and react to mutated state, not just follow static rules.
 
 **Why serial-only evaluation?** Disabling concurrent sessions (`SUPPORTS_CONCURRENT_SESSIONS = False`) prevents the singleton physics engine from bleeding temporal mutations across evaluator calls. If Thread A grounds `Heli_C` in Step 4 while Thread B is on Step 1, the engine state becomes an unreliable race condition. We trade throughput for **deterministic, hackathon-ready precision scoring**.
+
+**Why inject legal moves for large models too?**
+Early runs with `Mixtral 8x22B` revealed that even massive models 
+fail at multi-step spatial constraint arithmetic when board state 
+grows complex. In Hard Mode Step 6, the model routed itself into 
+a mathematical checkmate — Medical cargo on Heli_A, Chemical on 
+Heli_B, Heli_C grounded, and one Medical pallet left with nowhere 
+legal to go. The root cause was not intelligence but trust: we 
+trusted the LLM to track capacity math across six sequential 
+decisions. Removing that trust — always pre-computing legal moves 
+in Python and handing the LLM a verified list — eliminated the 
+failure class entirely. The LLM's job is strategy, not arithmetic.
 
 ---
 
