@@ -194,6 +194,7 @@ def _is_small_model(model_name: str) -> bool:
     return True
 
 def _build_legal_moves_block(obs: Dict[str, Any]) -> str:
+    _detect_grounded_heli(obs)
     pallets = obs.get("remaining_pallets", {})
     helicopters = obs.get("helicopters", {})
     difficulty = obs.get("task_difficulty", "unknown")
@@ -216,7 +217,7 @@ def _build_legal_moves_block(obs: Dict[str, Any]) -> str:
         
         valid_helis = {
             h_id: h_data for h_id, h_data in helicopters.items()
-            if not (difficulty == "hard" and h_id == "Heli_C")
+            if not (_grounded_heli_id is not None and h_id == _grounded_heli_id)
         }
         
         for h_id, h_data in sorted(valid_helis.items(), key=lambda x: (x[1]["max_capacity"] - x[1]["current_load"])):
@@ -277,11 +278,29 @@ HELICOPTERS:
 REMAINING PALLETS:
 {json.dumps(pallets, indent=2)}
 """
-    if not _is_small_model(MODEL_NAME):
-        return base_prompt
     return base_prompt + _build_legal_moves_block(obs)
 
 # ─── 4. ACTION VALIDATOR ──────────────────────────────────────────────────────
+
+def _validate_cove_quality(action: Dict[str, Any], obs: Dict[str, Any]) -> Tuple[bool, str]:
+    if "hazard_check" not in action:
+        return False, "hazard_check field absent"
+    
+    hc = action["hazard_check"]
+    if not isinstance(hc, str) or len(hc.strip()) < 20:
+        return False, "hazard_check too short"
+
+    p_id = action.get("pallet_id")
+    pallet = obs.get("remaining_pallets", {}).get(p_id, {})
+
+    hazard_class = pallet.get("hazard_class", "safe").lower()
+    p_id_lower = str(p_id).lower() if p_id else ""
+
+    hc_lower = hc.lower()
+    if hazard_class not in hc_lower and p_id_lower not in hc_lower:
+        return False, "Grounding rule violated: hazard class or pallet ID not quoted"
+
+    return True, "CoVe valid"
 
 def _validate_action(
     action: Dict[str, Any], obs: Dict[str, Any]
@@ -329,7 +348,16 @@ def _validate_action(
 # Track hazard classes loaded onto each helicopter across steps
 # (since loaded pallets are removed from remaining_pallets, we can't look them up later)
 _heli_hazard_map: Dict[str, set] = {}
+_grounded_heli_id: Optional[str] = None
 
+def _detect_grounded_heli(obs: Dict[str, Any]) -> None:
+    global _grounded_heli_id
+    reason = obs.get("info", {}).get("reason", "")
+    if "grounded" in reason.lower():
+        for h_id in obs.get("helicopters", {}).keys():
+            if h_id in reason:
+                _grounded_heli_id = h_id
+                break
 
 def _update_hazard_tracking(obs: Dict[str, Any], action: Optional[Dict[str, str]] = None) -> None:
     """Track which hazard classes are on each helicopter."""
@@ -352,8 +380,9 @@ def _update_hazard_tracking(obs: Dict[str, Any], action: Optional[Dict[str, str]
 
 def _reset_hazard_tracking() -> None:
     """Reset tracking for a new episode."""
-    global _heli_hazard_map
+    global _heli_hazard_map, _grounded_heli_id
     _heli_hazard_map = {}
+    _grounded_heli_id = None
 
 
 def _would_trigger_trap(h_id: str, pallet_hazard: str) -> bool:
@@ -376,6 +405,7 @@ def _greedy_fallback(obs: Dict[str, Any]) -> Optional[Dict[str, str]]:
       2. Heaviest first (FFD) to minimize wasted bin space.
       3. Best-Fit heli sort (Tightest fit) to leave large contiguous blocks of space.
     """
+    _detect_grounded_heli(obs)
     pallets = obs.get("remaining_pallets", {})
     helicopters = obs.get("helicopters", {})
     difficulty = obs.get("task_difficulty", "unknown")
@@ -395,10 +425,10 @@ def _greedy_fallback(obs: Dict[str, Any]) -> Optional[Dict[str, str]]:
         weight = p_data.get("weight", 0)
         hazard = p_data.get("hazard_class", "safe")
 
-        # TORNADO BLOCK: Never route to Heli_C in Hard Mode
+        # TORNADO BLOCK: Never route to grounded heli
         valid_helis = {
             h_id: h_data for h_id, h_data in helicopters.items()
-            if not (difficulty == "hard" and h_id == "Heli_C")
+            if not (_grounded_heli_id is not None and h_id == _grounded_heli_id)
         }
 
         # BEST-FIT: Sort helis by tightest fit first to minimize fragmentation
@@ -461,6 +491,15 @@ async def get_model_action(
             if not is_valid:
                 logger.warning(
                     "Attempt %d: invalid action %s — %s", attempt, action, reason
+                )
+                if attempt < MAX_RETRIES:
+                    await asyncio.sleep(RETRY_DELAY)
+                continue
+
+            cove_valid, cove_reason = _validate_cove_quality(action, obs)
+            if not cove_valid:
+                logger.warning(
+                    "Attempt %d: invalid action %s — %s", attempt, action, cove_reason
                 )
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(RETRY_DELAY)
@@ -597,4 +636,4 @@ async def main() -> None:
             log_end(task_id="disaster-relief-easy", score_val=0.001, steps=0)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())

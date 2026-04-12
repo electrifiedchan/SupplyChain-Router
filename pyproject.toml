@@ -1,12 +1,12 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "disaster-relief-logistics"
 version = "1.0.0"
 description = "Disaster Relief Logistics — OpenEnv RL environment"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "openenv-core>=0.2.2",
     "fastapi>=0.104.0",

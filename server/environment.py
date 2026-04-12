@@ -2,6 +2,7 @@ import sys
 import os
 import copy
 import logging
+import random
 from typing import Dict, Any, Optional, List, Tuple
 
 from openenv.core.env_server import Environment
@@ -296,6 +297,10 @@ class SupplyChainEnv(Environment):
         )
 
     def _initialise_episode(self) -> None:
+        self.current_seed = random.randint(1000, 9999)
+        random.seed(self.current_seed)
+        print(f"[START] initialization seed={self.current_seed}", flush=True)
+
         self._episode_count += 1
         self._difficulty = DIFFICULTY_CYCLE[(self._episode_count - 1) % len(DIFFICULTY_CYCLE)]
         scenario = copy.deepcopy(SCENARIOS[self._difficulty])
@@ -304,11 +309,33 @@ class SupplyChainEnv(Environment):
         self._failure_reason = None
         self._anomaly_triggered = False
         self._active_alert = ""
-        self._pallets = scenario["pallets"]
         self._helicopters = scenario["helicopters"]
-        self._pallets_reference = copy.deepcopy(scenario["pallets"])
+        
+        pallets_base = scenario["pallets"]
+        total_fleet_capacity = sum(h.max_capacity for h in self._helicopters.values())
+        
+        base_weights = {pid: p.weight for pid, p in pallets_base.items()}
+        
+        for _ in range(10):
+            total_pallet_weight = 0
+            for pid, p in pallets_base.items():
+                base_weight = base_weights[pid]
+                p.weight = max(1, base_weight + random.randint(-5, 5))
+                total_pallet_weight += p.weight
+                
+            if total_pallet_weight <= total_fleet_capacity:
+                break
+        else:
+            pallets_base = copy.deepcopy(SCENARIOS[self._difficulty])["pallets"]
+            total_pallet_weight = sum(p.weight for p in pallets_base.values())
+            
+        self._pallets = pallets_base
+        self._pallets_reference = copy.deepcopy(self._pallets)
         self._useful_load = {h_id: 0 for h_id in self._helicopters}
         self._action_history = []
+        
+        self.baseline_payload_weight = total_pallet_weight
+        SCENARIO_BASELINE_CAPACITY[self._difficulty] = total_pallet_weight
 
     def _parse_action(self, action: Any) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         if isinstance(action, dict):
@@ -330,9 +357,14 @@ class SupplyChainEnv(Environment):
     def _evaluate_final_solution(self) -> Tuple[float, str]:
         helis = list(self._helicopters.values())
         all_pallets = self._pallets_reference
-        total_capacity = SCENARIO_BASELINE_CAPACITY[self._difficulty]
-        total_useful = sum(self._useful_load.values())
-        utilization = total_useful / total_capacity if total_capacity > 0 else 0.0
+        
+        active_max_capacity = sum(h.max_capacity for h in helis if h.max_capacity > 0)
+        active_useful_load = sum(
+            self._useful_load[h_id] 
+            for h_id, h in self._helicopters.items() 
+            if h.max_capacity > 0
+        )
+        utilization = active_useful_load / active_max_capacity if active_max_capacity > 0 else 0.0
 
         total_criticals = sum(1 for p in all_pallets.values() if p.priority == "critical")
         routed_criticals = sum(
